@@ -1,70 +1,64 @@
-// File: app/api/client/[email]/forms/recommend/route.ts
+// app/api/client/forms/recommend/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { OpenAI } from "openai";
+// POST /api/client/forms/recommend?email=...
+export async function POST(req: NextRequest) {
+    const emailParam = req.nextUrl.searchParams.get("email");
 
-const openai = new OpenAI();
-
-export async function POST(
-  _req: NextRequest,
-  context: { params: { email: string } }
-) {
-  const email = decodeURIComponent(context.params.email);
-
-  try {
-    const client = await prisma.client.findUnique({
-      where: { email },
-      include: {
-        summaries: { orderBy: { createdAt: "desc" } },
-        insights: true,
-      },
-    });
-
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    if (!emailParam) {
+        return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
 
-    const summaries = client.summaries.map((s) => s.content).join("\n\n");
-    const insights = client.insights.map((i) => i.content).join("\n\n");
+    const email: string = emailParam || "";
 
-    const prompt = `You are a financial advisor assistant AI. Based on the client summaries and insights below, recommend the financial forms that should be prepared (e.g., account opening, risk profile, beneficiary form, transfer form, etc.).
+    const body = await req.json();
+    const { message } = body;
 
-Return an array of JSON objects like this:
-[
-  {
-    "name": "New Roth IRA Application",
-    "type": "Account Opening",
-    "provider": "SEI or Osaic"
-  },
-  ...
-]
-
-Client Summary:
-${summaries}
-
-Client Insights:
-${insights}`;
-
-    const result = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        { role: "system", content: "You recommend and structure forms for financial clients." },
-        { role: "user", content: prompt },
-      ],
-    });
-
-    const raw = result.choices[0].message.content || "";
+    if (!message) {
+        return NextResponse.json({ error: "Missing recommendation message" }, { status: 400 });
+    }
 
     try {
-      const parsed = JSON.parse(raw);
-      return NextResponse.json({ forms: parsed });
+        const client = await prisma.client.findUnique({ where: { email } });
+
+        if (!client) {
+            return NextResponse.json({ error: "Client not found" }, { status: 404 });
+        }
+
+        const recommendation = await prisma.recommendation.create({
+            data: {
+                message,
+                client: { connect: { email } },
+            },
+        });
+
+        return NextResponse.json(recommendation);
     } catch (err) {
-      console.error("Form parse error:", raw);
-      return NextResponse.json({ error: "Invalid AI format" }, { status: 500 });
+        console.error('[RECOMMENDATION ERROR]', err);
+        return NextResponse.json({ error: 'Failed to create recommendation' }, { status: 500 });
     }
-  } catch (err) {
-    console.error("Recommend Forms Error:", err);
-    return NextResponse.json({ error: "Failed to recommend forms." }, { status: 500 });
-  }
+}
+
+// GET /api/client/forms/recommend?email=...
+export async function GET(req: NextRequest) {
+    const emailParam = req.nextUrl.searchParams.get("email");
+
+    if (!emailParam) {
+        return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    }
+
+    const email: string = emailParam || "";
+
+    try {
+        const recommendations = await prisma.recommendation.findMany({
+            where: { client: { email } },
+            orderBy: [{ createdAt: 'desc' }],
+        });
+
+        return NextResponse.json(recommendations);
+    } catch (err) {
+        console.error('[RECOMMENDATION FETCH ERROR]', err);
+        return NextResponse.json({ error: 'Failed to fetch recommendations' }, { status: 500 });
+    }
 }
