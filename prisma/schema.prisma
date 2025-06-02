@@ -1,0 +1,155 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Advisor {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  clients   Client[]
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String
+  advisor         Advisor?         @relation(fields: [advisorId], references: [id])
+  advisorId       String?
+  summaries       Summary[]
+  insights        Insight[]
+  forms           Form[]
+  coachingPrompts CoachingPrompt[]
+  feedback        Feedback[]
+  timelineEvents  TimelineEvent[]
+  createdAt       DateTime         @default(now())
+  totalAssets     Float?           @default(0)
+  recentTransfers Int?             @default(0)
+  preferences     Preferences[]
+  meetings        Meeting[]
+  notifications   Notification[]
+  reminders       Reminder[]
+  progress        Progress[]
+  auditLog        AuditLog[]
+}
+
+model Summary {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
+
+model Insight {
+  id        String   @id @default(cuid())
+  content   String
+  tags      String
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
+
+model CoachingPrompt {
+  id        String   @id @default(cuid())
+  content   String   @default("")
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
+
+model TimelineEvent {
+  id        String   @id @default(cuid())
+  label     String
+  timestamp DateTime
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
+
+model Form {
+  id        String   @id @default(cuid())
+  name      String
+  provider  String
+  data      Json
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
+
+model Preferences {
+  id                 String   @id @default(cuid())
+  communicationStyle String?
+  investmentStyle    String?
+  riskTolerance      String?
+  preferredProducts  String?
+  client             Client   @relation(fields: [clientId], references: [id])
+  clientId           String
+  createdAt          DateTime @default(now())
+}
+
+model Meeting {
+  id       String   @id @default(cuid())
+  date     DateTime
+  time     String?
+  title    String?
+  location String?
+  notes    String?
+  client   Client   @relation(fields: [clientId], references: [id])
+  clientId String
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  content   String
+  type      String?
+  read      Boolean  @default(false)
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Reminder {
+  id       String   @id @default(cuid())
+  message  String
+  note     String?
+  dueDate  DateTime
+  client   Client   @relation(fields: [clientId], references: [id])
+  clientId String
+}
+
+model Progress {
+  id        String   @id @default(cuid())
+  goal      String
+  status    String?
+  notes     String?
+  complete  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
