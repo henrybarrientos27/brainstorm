@@ -1,3 +1,5 @@
+// schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,150 +10,124 @@ datasource db {
 }
 
 model Advisor {
-  id      String   @id @default(cuid())
-  email   String   @unique
-  clients Client[]
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  clients   Client[] @relation("AdvisorToClients")
+  createdAt DateTime @default(now())
 }
 
 model Client {
-  id              String   @id @default(cuid())
-  email           String   @unique
+  id              String           @id @default(uuid())
+  email           String           @unique
   name            String
-  totalAssets     Float?   @default(0)
-  recentTransfers Float?   @default(0)
-  advisor         Advisor? @relation(fields: [advisorId], references: [id])
+  phone           String?
   advisorId       String?
-  recommendations  Recommendation[]
+  advisor         Advisor?         @relation("AdvisorToClients", fields: [advisorId], references: [id])
   summaries       Summary[]
   insights        Insight[]
-  trustScores     TrustScore[]
-  coachingPrompts CoachingPrompt[]
-  timelineEvents  TimelineEvent[]
-  forms           Form[]
+  trustScore      TrustScore?      @relation("SingleTrustScore")
+  coachingPrompt  CoachingPrompt?
+  memoryTimeline  TimelineEvent[]  @relation("MemoryTimeline")
   feedback        Feedback[]
-  preferences     Preferences?
-  meetings        Meeting[]
-  notifications   Notification[]
-  reminders       Reminder[]
-  progress        Progress[]
+  forms           Form[]
   auditLog        AuditLog[]
-  history     History[]
-
+  reminders       Reminder[]
+  recommendations Recommendation[]
+  progress        Progress[]
+  history         History[]
+  patterns        Pattern[]
+  notifications   Notification[]
+  goals           Goal[]
+  intent          Intent[]
+  meetings        Meeting[]
+  persona         Persona?
+  preferences     Preference?
+  profile         Profile?
+  refreshes       Refresh[]
+  createdAt       DateTime         @default(now())
+  totalAssets     Float?           @default(0)
+  recentTransfers Float?           @default(0)
 }
 
 model Summary {
-  id       String @id @default(cuid())
-  content  String
-  client   Client @relation(fields: [clientId], references: [id])
-  clientId String
+  id        String   @id @default(uuid())
+  content   String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
 }
 
 model Insight {
-  id        String   @id @default(cuid())
-  tags      String?
+  id        String   @id @default(uuid())
+  tags      String[]
   content   String
-  createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
+  createdAt DateTime @default(now())
 }
 
 model TrustScore {
-  id       String @id @default(cuid())
-  score    Int
-  client   Client @relation(fields: [clientId], references: [id])
-  clientId String
+  id        String   @id @default(uuid())
+  value     Float    @default(0)
+  client    Client   @relation("SingleTrustScore", fields: [clientId], references: [id])
+  clientId  String   @unique
+  createdAt DateTime @default(now())
 }
 
 model CoachingPrompt {
-  id       String @id @default(cuid())
-  content  String @default("")
-  client   Client @relation(fields: [clientId], references: [id])
-  clientId String
+  id        String   @id @default(uuid())
+  content   String   @default("")
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String   @unique
+  createdAt DateTime @default(now())
 }
 
 model TimelineEvent {
-  id        String   @id @default(cuid())
-  title     String
-  detail    String
-  createdAt DateTime @default(now())
-  client    Client   @relation(fields: [clientId], references: [id])
+  id        String   @id @default(uuid())
+  event     String
+  client    Client   @relation("MemoryTimeline", fields: [clientId], references: [id])
   clientId  String
-}
-
-model Form {
-  id        String   @id @default(cuid())
-  name      String
-  provider  String
   createdAt DateTime @default(now())
-  client    Client   @relation(fields: [clientId], references: [id])
-  clientId  String
 }
 
 model Feedback {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   message   String
   rating    Int
-  createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
-}
-
-model Preferences {
-  id                 String  @id @default(cuid())
-  communicationStyle String?
-  investmentStyle    String?
-  riskTolerance      String?
-  preferredProducts  String?
-  client             Client  @relation(fields: [clientId], references: [id])
-  clientId           String  @unique
-}
-
-model Meeting {
-  id       String   @id @default(cuid())
-  date     DateTime
-  time     String?
-  title    String?
-  location String?
-  notes    String?
-  client   Client   @relation(fields: [clientId], references: [id])
-  clientId String
-}
-
-model Notification {
-  id       String  @id @default(cuid())
-  content  String
-  type     String?
-  client   Client  @relation(fields: [clientId], references: [id])
-  clientId String
-}
-
-model Reminder {
-  id       String   @id @default(cuid())
-  message  String
-  note     String?
-  dueDate  DateTime
-  client   Client   @relation(fields: [clientId], references: [id])
-  clientId String
-}
-
-model Progress {
-  id        String   @id @default(cuid())
-  goal      String
-  status    String?
-  notes     String?
   createdAt DateTime @default(now())
+}
+
+model Form {
+  id        String   @id @default(uuid())
+  provider  String
+  url       String
+  type      String
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
+  createdAt DateTime @default(now())
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
   action    String
-  metadata  Json?
-  createdAt DateTime @default(now())
+  metadata  Json
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
+  createdAt DateTime @default(now())
 }
+
+model Reminder {
+  id        String   @id @default(uuid())
+  note      String
+  dueDate   DateTime
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
 model Recommendation {
   id        String   @id @default(uuid())
   message   String
@@ -159,11 +135,100 @@ model Recommendation {
   clientId  String
   createdAt DateTime @default(now())
 }
+
+model Progress {
+  id        String   @id @default(uuid())
+  goal      String
+  status    String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
 model History {
-  id          String   @id @default(cuid())
-  type        String   // e.g., "transcript", "recommendation", "redtail", etc.
-  description String
-  createdAt   DateTime @default(now())
-  client      Client   @relation(fields: [clientId], references: [id])
-  clientId    String
+  id        String   @id @default(uuid())
+  action    String
+  metadata  Json
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Pattern {
+  id        String   @id @default(uuid())
+  trait     String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  message   String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Goal {
+  id        String   @id @default(uuid())
+  title     String
+  status    String
+  dueDate   DateTime
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Intent {
+  id        String   @id @default(uuid())
+  statement String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Meeting {
+  id        String   @id @default(uuid())
+  notes     String
+  date      DateTime
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Persona {
+  id        String   @id @default(uuid())
+  trait     String
+  score     Int
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Preference {
+  id        String   @id @default(uuid())
+  category  String
+  value     String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  data      Json
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Refresh {
+  id        String   @id @default(uuid())
+  type      String
+  source    String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
 }
