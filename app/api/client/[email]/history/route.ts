@@ -1,43 +1,59 @@
-// File: app/api/client/[email]/history/route.ts
+// app/api/client/[email]/history/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+// POST /api/client/[email]/history?email=...
+export async function POST(req: NextRequest) {
+    const emailParam = req.nextUrl.searchParams.get("email");
+    if (!emailParam) {
+        return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    }
+    const email: string = emailParam || "";
+    const body = await req.json();
+    const { type, description } = body;
 
-export async function GET(
-    req: NextRequest,
-    { params }: { params: { email: string } }
-) {
-    const email = decodeURIComponent(params.email);
+    if (!type || !description) {
+        return NextResponse.json({ error: "Missing type or description" }, { status: 400 });
+    }
+
     try {
-        const client = await prisma.client.findUnique({
-            where: { email },
-            include: { summaries: true },
+        const client = await prisma.client.findUnique({ where: { email } });
+        if (!client) {
+            return NextResponse.json({ error: "Client not found" }, { status: 404 });
+        }
+
+        const log = await prisma.history.create({
+            data: {
+                type,
+                description,
+                client: { connect: { email } },
+            },
         });
 
-        if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+        return NextResponse.json(log);
+    } catch (err) {
+        console.error("[HISTORY POST ERROR]", err);
+        return NextResponse.json({ error: "Failed to create history log" }, { status: 500 });
+    }
+}
 
-        // Simulated Redtail & Email Data (mocked)
-        const redtailNotes = [
-            "Client is conservative and prefers low risk.",
-            "Recently changed job and updated income.",
-            "Family history of charitable giving."
-        ];
+// GET /api/client/[email]/history?email=...
+export async function GET(req: NextRequest) {
+    const emailParam = req.nextUrl.searchParams.get("email");
+    if (!emailParam) {
+        return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    }
+    const email: string = emailParam || "";
 
-        const emails = [
-            "Can you remind me what we discussed about college planning?",
-            "We want to make sure our estate plan reflects the second home."
-        ];
+    try {
+        const logs = await prisma.history.findMany({
+            where: { client: { email } },
+            orderBy: [{ createdAt: 'desc' }],
+        });
 
-        const pastSummaries = client.summaries.map((s) => s.content);
-
-        const historicalContext = [
-            ...redtailNotes,
-            ...emails,
-            ...pastSummaries
-        ];
-
-        return NextResponse.json({ context: historicalContext });
-    } catch (error) {
-        return NextResponse.json({ error: "Failed to load history" }, { status: 500 });
+        return NextResponse.json(logs);
+    } catch (err) {
+        console.error("[HISTORY GET ERROR]", err);
+        return NextResponse.json({ error: "Failed to fetch history logs" }, { status: 500 });
     }
 }

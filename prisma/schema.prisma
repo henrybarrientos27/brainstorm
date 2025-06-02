@@ -35,6 +35,8 @@ model Client {
   reminders       Reminder[]
   progress        Progress[]
   auditLog        AuditLog[]
+  history     History[]
+
 }
 
 model Summary {
@@ -157,4 +159,11 @@ model Recommendation {
   clientId  String
   createdAt DateTime @default(now())
 }
-
+model History {
+  id          String   @id @default(cuid())
+  type        String   // e.g., "transcript", "recommendation", "redtail", etc.
+  description String
+  createdAt   DateTime @default(now())
+  client      Client   @relation(fields: [clientId], references: [id])
+  clientId    String
+}
