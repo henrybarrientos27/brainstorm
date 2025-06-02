@@ -1,45 +1,27 @@
 ﻿// app/api/client/[email]/profile/route.ts
-import prisma from "@/lib/prisma"; // ✅ CORRECT
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
-import { NextResponse } from 'next/server';
+export async function GET(req: NextRequest) {
+    const emailParam = req.nextUrl.searchParams.get("email");
+    if (!emailParam) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    const email: string = emailParam;
 
-export async function GET(
-  request: Request,
-  { params }: { params: { email: string } }
-) {
-  const email = decodeURIComponent(params.email);
+    const client = await prisma.client.findUnique({ where: { email } });
+    if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
-  try {
-    const client = await prisma.client.findUnique({
-      where: { email },
-      include: {
-        summaries: {
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
-      }
+    const summaries = await prisma.summary.findMany({ where: { clientId: client.id } });
+    const insights = await prisma.insight.findMany({ where: { clientId: client.id } });
+    const goals = await prisma.goal.findMany({ where: { clientId: client.id } });
+    const forms = await prisma.form.findMany({ where: { clientId: client.id } });
+    const timeline = await prisma.timelineEvent.findMany({ where: { clientId: client.id } });
+
+    return NextResponse.json({
+        client,
+        summaries,
+        insights,
+        goals,
+        forms,
+        timeline,
     });
-
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 404 });
-    }
-
-    // Mock profile data (replace with real fields later)
-    const profile = {
-      name: client.name,
-      email: client.email,
-      riskTolerance: "Moderate",
-      preferredPlatform: "SEI",
-      financialGoals: [
-        "Retire by 60",
-        "Fund child’s college education",
-        "Achieve long-term growth"
-      ]
-    };
-
-    return NextResponse.json({ profile });
-  } catch (err) {
-    console.error("Error fetching client profile:", err);
-    return NextResponse.json({ error: "Failed to fetch client profile" }, { status: 500 });
-  }
 }
