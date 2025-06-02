@@ -1,13 +1,12 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+// app/api/redtail/upload/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 import { Readable } from 'stream';
 import { parse } from 'csv-parse';
 import prisma from '@/lib/prisma';
 
 async function streamToString(stream: Readable): Promise<string> {
     const chunks: Uint8Array[] = [];
-    for await (const chunk of stream) {
-        chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-    }
+    for await (const chunk of stream) chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
     return Buffer.concat(chunks).toString('utf-8');
 }
 
@@ -33,7 +32,7 @@ export async function POST(req: NextRequest) {
         }
 
         for (const row of records) {
-            await prisma.client.upsert({
+            const client = await prisma.client.upsert({
                 where: { email: row.Email },
                 update: {
                     name: row.Name,
@@ -53,6 +52,21 @@ export async function POST(req: NextRequest) {
                     },
                 },
             });
+
+            const insights: { tags: string; content: string }[] = [
+                { tags: 'trust', content: 'Client trusts advisor based on high asset transfer activity.' },
+                { tags: 'goal', content: 'Client is actively building wealth based on net planning data.' },
+            ];
+
+            for (const insight of insights) {
+                await prisma.insight.create({
+                    data: {
+                        tags: insight.tags,
+                        content: insight.content,
+                        client: { connect: { email: row.Email } },
+                    },
+                });
+            }
         }
 
         return NextResponse.json({ message: 'Upload successful' });
