@@ -1,38 +1,35 @@
-// schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Advisor {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  clients   Client[]
-  createdAt DateTime @default(now())
+  id      String   @id @default(cuid())
+  email   String   @unique
+  clients Client[]
 }
 
 model Client {
-  id              String           @id @default(cuid())
-  email           String           @unique
+  id              String   @id @default(cuid())
+  email           String   @unique
   name            String
-  advisor         Advisor?         @relation(fields: [advisorId], references: [id])
+  totalAssets     Float?   @default(0)
+  recentTransfers Float?   @default(0)
+  advisor         Advisor? @relation(fields: [advisorId], references: [id])
   advisorId       String?
+
   summaries       Summary[]
   insights        Insight[]
-  forms           Form[]
+  trustScores     TrustScore[]
   coachingPrompts CoachingPrompt[]
-  feedback        Feedback[]
   timelineEvents  TimelineEvent[]
-  createdAt       DateTime         @default(now())
-  totalAssets     Float?           @default(0)
-  recentTransfers Int?             @default(0)
-  preferences     Preferences[]
+  forms           Form[]
+  feedback        Feedback[]
+  preferences     Preferences?
   meetings        Meeting[]
   notifications   Notification[]
   reminders       Reminder[]
@@ -41,43 +38,40 @@ model Client {
 }
 
 model Summary {
-  id        String   @id @default(cuid())
-  content   String
-  createdAt DateTime @default(now())
-  client    Client   @relation(fields: [clientId], references: [id])
-  clientId  String
+  id       String @id @default(cuid())
+  content  String
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
 }
 
 model Insight {
   id        String   @id @default(cuid())
+  tags      String?
   content   String
-  tags      String
   createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
+}
+
+model TrustScore {
+  id       String @id @default(cuid())
+  score    Int
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
 }
 
 model CoachingPrompt {
-  id        String   @id @default(cuid())
-  content   String   @default("")
-  createdAt DateTime @default(now())
-  client    Client   @relation(fields: [clientId], references: [id])
-  clientId  String
-}
-
-model Feedback {
-  id        String   @id @default(cuid())
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-  client    Client   @relation(fields: [clientId], references: [id])
-  clientId  String
+  id       String @id @default(cuid())
+  content  String @default("")
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId String
 }
 
 model TimelineEvent {
   id        String   @id @default(cuid())
-  label     String
-  timestamp DateTime
+  title     String
+  detail    String
+  createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
 }
@@ -86,21 +80,28 @@ model Form {
   id        String   @id @default(cuid())
   name      String
   provider  String
-  data      Json
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  message   String
+  rating    Int
   createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
 }
 
 model Preferences {
-  id                 String   @id @default(cuid())
+  id                 String  @id @default(cuid())
   communicationStyle String?
   investmentStyle    String?
   riskTolerance      String?
   preferredProducts  String?
-  client             Client   @relation(fields: [clientId], references: [id])
-  clientId           String
-  createdAt          DateTime @default(now())
+  client             Client  @relation(fields: [clientId], references: [id])
+  clientId           String  @unique
 }
 
 model Meeting {
@@ -115,13 +116,11 @@ model Meeting {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  content   String
-  type      String?
-  read      Boolean  @default(false)
-  client    Client   @relation(fields: [clientId], references: [id])
-  clientId  String
-  createdAt DateTime @default(now())
+  id       String  @id @default(cuid())
+  content  String
+  type     String?
+  client   Client  @relation(fields: [clientId], references: [id])
+  clientId String
 }
 
 model Reminder {
@@ -138,11 +137,9 @@ model Progress {
   goal      String
   status    String?
   notes     String?
-  complete  Boolean  @default(false)
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
-  createdAt DateTime @default(now())
 }
 
 model AuditLog {
