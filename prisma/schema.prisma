@@ -21,7 +21,7 @@ model Client {
   recentTransfers Float?   @default(0)
   advisor         Advisor? @relation(fields: [advisorId], references: [id])
   advisorId       String?
-
+  recommendations  Recommendation[]
   summaries       Summary[]
   insights        Insight[]
   trustScores     TrustScore[]
@@ -150,3 +150,11 @@ model AuditLog {
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
 }
+model Recommendation {
+  id        String   @id @default(uuid())
+  message   String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+}
+
