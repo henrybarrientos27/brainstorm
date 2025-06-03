@@ -1,59 +1,42 @@
-﻿// File: app/api/client/[email]/summary/route.ts
-
-import { NextResponse } from "next/server";
-import { OpenAI } from "openai";
+﻿// app/api/client/[email]/summary/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import OpenAI from "openai";
 
-const openai = new OpenAI();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-export async function POST(
-    req: Request,
-    { params }: { params: { email: string } }
-) {
-    const email = decodeURIComponent(params.email);
-    const { transcript } = await req.json();
+export async function POST(req: NextRequest) {
+  const emailParam = req.nextUrl.searchParams.get("email");
+  if (!emailParam) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+  const email: string = emailParam;
 
-    try {
-        const client = await prisma.client.findUnique({ where: { email } });
-        if (!client) {
-            return NextResponse.json({ error: "Client not found" }, { status: 404 });
-        }
+  const client = await prisma.client.findUnique({ where: { email } });
+  if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        "You are an AI assistant that summarizes financial advisor-client meetings. Provide a clear, concise summary of the transcript.",
-                },
-                {
-                    role: "user",
-                    content: transcript,
-                },
-            ],
-        });
+  const formData = await req.formData();
+  const transcript = formData.get("transcript")?.toString();
+  if (!transcript) return NextResponse.json({ error: "Missing transcript" }, { status: 400 });
 
-        const content = completion.choices[0].message.content;
+  const prompt = `Analyze the following client meeting transcript and generate a structured summary. Include the key points discussed, any financial decisions made, next steps, and advisor recommendations. Use bullet points when possible. Ensure the tone is professional and consistent:
 
-        await prisma.summary.create({
-            data: {
-                content: content || "",
-                client: { connect: { email } },
-            },
-        });
+${transcript}`;
 
-        await prisma.activity.create({
-            data: {
-                type: "Summary",
-                details: "Created summary from transcript.",
-                client: { connect: { email } },
-            },
-        });
+  const response = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [
+      { role: "system", content: "You're a professional financial assistant summarizing transcripts for compliance and client reference." },
+      { role: "user", content: prompt }
+    ]
+  });
 
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error("Error generating summary:", error);
-        return NextResponse.json({ error: "Failed to summarize" }, { status: 500 });
+  const content = response.choices[0].message.content || "";
+
+  const summary = await prisma.summary.create({
+    data: {
+      clientId: client.id,
+      content
     }
+  });
+
+  return NextResponse.json({ summary });
 }
