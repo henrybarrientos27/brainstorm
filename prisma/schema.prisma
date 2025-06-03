@@ -41,6 +41,7 @@ model Client {
   goals           Goal[]
   intent          Intent[]
   meetings        Meeting[]
+  trends          Trend[]
   persona         Persona?
   preferences     Preference?
   profile         Profile?
@@ -230,5 +231,13 @@ model Refresh {
   source    String
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
+  createdAt DateTime @default(now())
+}
+
+model Trend {
+  id        String   @id @default(uuid())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  content   String
   createdAt DateTime @default(now())
 }

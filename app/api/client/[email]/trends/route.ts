@@ -1,59 +1,43 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+﻿// app/api/client/[email]/trends/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import OpenAI from "openai";
 
-export async function POST(req: NextRequest, context: { params: { email: string } }) {
-    const { email } = context.params;
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-    try {
-        const client = await prisma.client.findUnique({
-            where: { email }
-        });
+export async function POST(req: NextRequest) {
+    const emailParam = req.nextUrl.searchParams.get("email");
+    if (!emailParam) return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    const email: string = emailParam;
 
-        if (!client) {
-            return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    const client = await prisma.client.findUnique({ where: { email } });
+    if (!client) return NextResponse.json({ error: "Client not found" }, { status: 404 });
+
+    const insights = await prisma.insight.findMany({
+        where: { clientId: client.id },
+        orderBy: { createdAt: "desc" },
+        take: 25
+    });
+
+    const recentInsights = insights.map(i => `- ${i.content}`).join("\n");
+    const prompt = `Based on the following client insights, identify emerging behavioral or financial trends. Describe these trends clearly and explain how they might affect future planning. Tone should be analytical and consistent:\n\n${recentInsights}`;
+
+    const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+            { role: "system", content: "You are an AI financial trend analyst helping identify patterns in client behavior." },
+            { role: "user", content: prompt }
+        ]
+    });
+
+    const content = response.choices[0].message.content || "";
+
+    const trend = await prisma.trend.create({
+        data: {
+            clientId: client.id,
+            content
         }
+    });
 
-        const insights = await prisma.insight.findMany({
-            where: {
-                clientId: client.id,
-                type: "behavioral"
-            }
-        });
-
-        const behaviors = insights.map(i => i.content).join(" ");
-
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: [
-                    {
-                        role: "system",
-                        content: "You are a behavioral analyst. Analyze trends in client behavior."
-                    },
-                    {
-                        role: "user",
-                        content: behaviors
-                    }
-                ]
-            })
-        });
-
-        const rawData = await response.json();
-
-        // ✅ Fix here: safely parse possible unknown structure
-        const trendReport =
-            typeof rawData?.choices?.[0]?.message?.content === "string"
-                ? rawData.choices[0].message.content
-                : "Unable to generate trend analysis.";
-
-        return NextResponse.json({ trendReport });
-    } catch (err) {
-        console.error("Trend analysis error:", err);
-        return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
-    }
+    return NextResponse.json({ trend });
 }
