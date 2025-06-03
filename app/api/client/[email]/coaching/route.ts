@@ -1,82 +1,60 @@
-﻿// File: app/api/client/[email]/coaching/route.ts
-
+﻿// app/api/coaching/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { OpenAI } from "openai";
 import prisma from "@/lib/prisma";
+import OpenAI from "openai";
 
-const openai = new OpenAI();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 export async function POST(req: NextRequest) {
-    const emailParam = req.nextUrl.searchParams.get("email");
+  try {
+    const body = await req.json();
+    const { email } = body;
 
-    if (!emailParam) {
-        return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
 
-    const email: string = emailParam || "";
+    const client = await prisma.client.findUnique({ where: { email } });
+    if (!client) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
 
-    try {
-        const client = await prisma.client.findUnique({
-            where: { email },
-            include: {
-                summaries: true,
-                insights: true,
-                trustScores: true,
-            },
-        });
+    const insights = await prisma.insight.findMany({
+      where: { clientId: client.id },
+      orderBy: { createdAt: "desc" },
+      take: 15
+    });
 
-        if (!client) {
-            return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    const formattedInsights = insights.map(i => `- ${i.content}`).join("\n");
+    const coachingPrompt = `You are an elite financial advisor AI. Based on the following insights from recent client meetings, generate a detailed coaching prompt for the advisor before their next session. Be specific, client-personalized, and forward-looking:
+\n\n${formattedInsights}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are a strategic coaching assistant helping financial advisors prepare for meetings."
+        },
+        {
+          role: "user",
+          content: coachingPrompt
         }
+      ]
+    });
 
-        const data = `
-Client Name: ${client.name}
-Summaries:
-${client.summaries.map((s) => s.content).join("\n\n")}
-Insights:
-${client.insights.map((i) => `${i.tag}: ${i.content}`).join("\n")}
-Trust Scores:
-${client.trustScores.map((t) => `Score: ${t.value}`).join("\n")}
-    `;
+    const content = response.choices[0].message.content || "";
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        "You are an AI assistant coach. Review the client's profile, summaries, insights, and trust scores to generate a one-paragraph coaching prompt to help the advisor approach the client better in the next meeting.",
-                },
-                {
-                    role: "user",
-                    content: data,
-                },
-            ],
-        });
+    const prompt = await prisma.coachingPrompt.create({
+      data: {
+        clientId: client.id,
+        content
+      }
+    });
 
-        const response = completion.choices[0].message?.content || "";
-
-        await prisma.coachingPrompt.create({
-            data: {
-                content: response,
-                client: { connect: { email } },
-            },
-        });
-
-        await prisma.activity.create({
-            data: {
-                type: "Coaching Prompt",
-                details: "Generated coaching prompt using AI.",
-                client: { connect: { email } },
-            },
-        });
-
-        return NextResponse.json({ success: true, prompt: response });
-    } catch (error) {
-        console.error("Error generating coaching prompt:", error);
-        return NextResponse.json(
-            { error: "Failed to generate coaching prompt" },
-            { status: 500 }
-        );
-    }
+    return NextResponse.json({ prompt });
+  } catch (error) {
+    console.error("Coaching route error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
