@@ -24,6 +24,7 @@
     "next": "^15.2.5",
     "next-auth": "^4.24.11",
     "nodemailer": "^6.10.1",
+    "npm": "^11.4.2",
     "openai": "^4.97.0",
     "papaparse": "^5.5.3",
     "pdf-parse": "^1.1.1",
