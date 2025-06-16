@@ -1,88 +1,88 @@
-﻿// File: app/api/client/[email]/trust-score/route.ts
+﻿// app/api/client/[email]/trust-score/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { OpenAI } from "openai";
 import prisma from "@/lib/prisma";
+import OpenAI from "openai";
 
-const openai = new OpenAI();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: NextRequest) {
-    const emailParam = req.nextUrl.searchParams.get("email");
+  const emailParam = req.nextUrl.searchParams.get("email");
 
-    if (!emailParam) {
-        return NextResponse.json({ error: "Missing email" }, { status: 400 });
+  if (!emailParam) {
+    return NextResponse.json({ error: "Missing email" }, { status: 400 });
+  }
+
+  try {
+    const client = await prisma.client.findUnique({
+      where: { email: emailParam },
+      include: {
+        insights: true,
+        feedback: true,
+      },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const email: string = emailParam || "";
+    const insights = client.insights
+      .map((i) => `${i.tags.join(", ")}: ${i.content}`)
+      .join("\n");
 
-    try {
-        const client = await prisma.client.findUnique({
-            where: { email },
-            include: {
-                summaries: true,
-                insights: true,
-                feedback: true,
-            },
-        });
+    const feedback = client.feedback
+      .map((f) => `${f.message}`)
+      .join("\n");
 
-        if (!client) {
-            return NextResponse.json({ error: "Client not found" }, { status: 404 });
-        }
+    const content = `You are an advanced trust detection engine for financial advisors.
+A trust score is between 0 and 100:
+- 0 means the client has no trust in the advisor
+- 50 means neutral or unsure
+- 100 means full trust and comfort
 
-        const data = `
-Client Info:
-Name: ${client.name}
-
-Summaries:
-${client.summaries.map((s) => s.content).join("\n\n")}
+Analyze the following insights and feedback, and determine how much the client trusts the advisor. 
+If the client sounds scared, skeptical, or unsure, the trust score should be lower.
+If they sound positive, confident, or trusting, the score should be higher.
 
 Insights:
-${client.insights.map((i) => `${i.tag}: ${i.content}`).join("\n")}
+${insights}
 
 Feedback:
-${client.feedback.map((f) => f.content).join("\n")}
-    `;
+${feedback}
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        "You are an AI that reviews client history and assigns a trust score from 1 to 100 based on consistency, transparency, tone, engagement, and behavioral alignment with financial goals.",
-                },
-                {
-                    role: "user",
-                    content: data,
-                },
-            ],
-        });
+Respond with only the trust score number.`;
 
-        const response = completion.choices[0].message?.content || "";
-        const scoreMatch = response.match(/\d+/);
-        const value = scoreMatch ? parseInt(scoreMatch[0]) : null;
+    const response = await openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant.",
+        },
+        {
+          role: "user",
+          content,
+        },
+      ],
+      model: "gpt-4",
+    });
 
-        await prisma.trustScore.create({
-            data: {
-                value,
-                client: { connect: { email } },
-            },
-        });
+    const numberOnly = response.choices[0].message.content?.match(/\d+/);
+    const value = numberOnly ? parseInt(numberOnly[0], 10) : undefined;
 
-        await prisma.activity.create({
-            data: {
-                type: "Trust Score",
-                details: "Generated trust score using AI.",
-                client: { connect: { email } },
-            },
-        });
-
-        return NextResponse.json({ success: true, value });
-    } catch (error) {
-        console.error("Error generating trust score:", error);
-        return NextResponse.json(
-            { error: "Failed to generate trust score" },
-            { status: 500 }
-        );
+    if (value === undefined || isNaN(value)) {
+      return NextResponse.json({ error: "Failed to extract trust score" }, { status: 400 });
     }
+
+    const score = await prisma.trustScore.create({
+      data: {
+        value,
+        client: { connect: { email: emailParam } },
+      },
+    });
+
+    return NextResponse.json(score);
+  } catch (error) {
+    console.error("Error generating trust score:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

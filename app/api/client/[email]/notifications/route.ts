@@ -1,25 +1,33 @@
-// route.ts for /api/client/[email]/notifications
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+// app/api/client/[email]/notifications/route.ts
 
-export async function POST(req: NextRequest) {
-    const { email, content, type } = await req.json();
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
-    if (!email || !content) {
-        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+export async function POST(req: Request) {
+  try {
+    const { email, message, category } = await req.json();
+
+    if (!email || !message || !category) {
+      return NextResponse.json(
+        { success: false, error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
-    const client = await prisma.client.findUnique({ where: { email } });
-    if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-
     const notification = await prisma.notification.create({
-        data: {
-            content,
-            type,
-            client: { connect: { email } },
-        },
+      data: {
+        message,
+        category,
+        client: { connect: { email } },
+      },
     });
 
-    return NextResponse.json(notification);
+    return NextResponse.json({ success: true, notification });
+  } catch (error) {
+    console.error("Notification creation error:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
-

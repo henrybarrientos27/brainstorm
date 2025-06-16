@@ -1,49 +1,38 @@
-﻿// File: app/api/client/[email]/feedback/route.ts
+﻿// app/api/client/[email]/feedback/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
+  try {
+    const { message, rating } = await req.json();
     const emailParam = req.nextUrl.searchParams.get("email");
 
     if (!emailParam) {
-        return NextResponse.json({ error: "Missing email" }, { status: 400 });
+      return NextResponse.json({ error: "Missing client email in query." }, { status: 400 });
     }
 
-    const email: string = emailParam || "";
-
-    try {
-        const { message } = await req.json();
-
-        const client = await prisma.client.findUnique({
-            where: { email },
-        });
-
-        if (!client) {
-            return NextResponse.json({ error: "Client not found" }, { status: 404 });
-        }
-
-        const feedback = await prisma.feedback.create({
-            data: {
-                message,
-                client: { connect: { email } },
-            },
-        });
-
-        await prisma.activity.create({
-            data: {
-                type: "Feedback",
-                details: "Feedback submitted by advisor.",
-                client: { connect: { email } },
-            },
-        });
-
-        return NextResponse.json({ success: true, feedback });
-    } catch (error) {
-        console.error("Error submitting feedback:", error);
-        return NextResponse.json(
-            { error: "Failed to submit feedback" },
-            { status: 500 }
-        );
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json({ error: "Invalid or missing message." }, { status: 400 });
     }
+
+    if (!rating || typeof rating !== 'number') {
+      return NextResponse.json({ error: "Invalid or missing rating." }, { status: 400 });
+    }
+
+    const feedback = await prisma.feedback.create({
+      data: {
+        message,
+        rating,
+        client: {
+          connect: { email: emailParam },
+        },
+      },
+    });
+
+    return NextResponse.json(feedback);
+  } catch (error) {
+    console.error('Error creating feedback:', error);
+    return NextResponse.json({ error: "Server error." }, { status: 500 });
+  }
 }

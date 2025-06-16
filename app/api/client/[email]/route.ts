@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
             include: {
                 summaries: true,
                 insights: true,
-                coachingPrompts: true,
-                timelineEvents: true,
+                coachingPrompt: true,
+                timelineEvent: true,
                 forms: true,
                 feedback: true,
                 preferences: true,

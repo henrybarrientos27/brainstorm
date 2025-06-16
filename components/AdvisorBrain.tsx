@@ -1,17 +1,37 @@
+// components/AdvisorBrain.tsx
 "use client";
-import { useSession, signIn } from "next-auth/react";
-import { useEffect } from "react";
-import AppHome from "./AppHome"; // your main UI logic
 
-export default function AdvisorBrainWrapper() {
+import type { Session } from "next-auth/core/types";
+import { useSession } from "next-auth/react";
+import AppHome from "@/components/AppHome";
+
+import { Box, Flex, Heading, Spinner, Text } from "@chakra-ui/react";
+
+const AdvisorBrain = () => {
   const { data: session, status } = useSession();
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      signIn();
-    }
-  }, [status]);
+  if (status === "loading") {
+    return (
+      <Flex height="100vh" align="center" justify="center">
+        <Spinner size="xl" />
+      </Flex>
+    );
+  }
 
-  if (status === "loading") return <div>Checking auth...</div>;
-  return <AppHome session={session} />;
-}
+  if (!session) {
+    return (
+      <Flex height="100vh" align="center" justify="center" direction="column">
+        <Heading size="lg">Please log in to access AdvisorBrain</Heading>
+        <Text mt={4} color="gray.500">You need an advisor account to continue.</Text>
+      </Flex>
+    );
+  }
+
+  return (
+    <Box p={4} minH="100vh" bg="gray.50">
+      <AppHome session={session} />
+    </Box>
+  );
+};
+
+export default AdvisorBrain;

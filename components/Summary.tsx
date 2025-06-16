@@ -1,6 +1,7 @@
 // app/components/Summary.tsx
 import { Box, Text } from "@chakra-ui/react";
-import { Summary } from "@prisma/client";
+import type { Summary } from "@prisma/client";
+
 
 export default function Summary({ summaries }: { summaries: Summary[] }) {
   return (

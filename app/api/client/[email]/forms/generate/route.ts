@@ -1,82 +1,52 @@
-// File: app/api/client/[email]/forms/generate/route.ts
+""// /app/api/client/[email]/forms/generate/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { OpenAI } from "openai";
 import prisma from "@/lib/prisma";
+import { ChatOpenAI } from "@langchain/openai";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 
-const openai = new OpenAI();
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const email = searchParams.get("email");
 
-export async function POST(req: NextRequest) {
-    const emailParam = req.nextUrl.searchParams.get("email");
+  if (!email) {
+    return NextResponse.json({ error: "Missing email param" }, { status: 400 });
+  }
 
-    if (!emailParam) {
-        return NextResponse.json({ error: "Missing email" }, { status: 400 });
-    }
+  const client = await prisma.client.findUnique({
+    where: { email },
+    include: {
+      summaries: true,
+      insights: true,
+      trustScore: true,
+      coachingPrompt: true,
+      forms: true,
+    },
+  });
 
-    const email: string = emailParam || "";
+  if (!client) {
+    return NextResponse.json({ error: "Client not found" }, { status: 404 });
+  }
 
-    try {
-        const client = await prisma.client.findUnique({
-            where: { email },
-            include: {
-                summaries: true,
-                insights: true,
-                trustScores: true,
-                coachingPrompts: true,
-                forms: true,
-                timelineEvents: true,
-            },
-        });
+  const dataBlob = {
+    name: client.name,
+    trustScore: client.trustScore?.value ?? 50,
+    summaries: client.summaries.map((s) => s.content),
+    insights: client.insights.map((i) => ({ tags: i.tags, content: i.content })),
+    coaching: client.coachingPrompt?.content ?? "",
+    forms: client.forms.map((f) => ({ type: f.type, provider: f.provider })),
+  };
 
-        if (!client) {
-            return NextResponse.json({ error: "Client not found" }, { status: 404 });
-        }
+  const chat = new ChatOpenAI({ modelName: "gpt-3.5-turbo", temperature: 0.3 });
 
-        const prompt = `Generate a recommended list of financial forms the advisor should prepare for ${client.name}, based on their recent activity, insights, and discussions.`;
+  const response = await chat.call([
+    new SystemMessage(
+      "You are a helpful assistant that generates compliance-friendly, pre-filled financial forms for advisors based on known client information."
+    ),
+    new HumanMessage(
+      `Here is a snapshot of the client's current data: ${JSON.stringify(dataBlob)}`
+    ),
+  ]);
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        "You are a financial assistant. Based on a client's summaries, insights, and behavior, generate a short list of necessary financial forms (e.g. risk tolerance, account opening, beneficiary designation). Respond in JSON with an array of form types.",
-                },
-                {
-                    role: "user",
-                    content: prompt,
-                },
-            ],
-        });
-
-        const json = response.choices[0].message?.content || "[]";
-        const formTypes = JSON.parse(json);
-
-        for (const type of formTypes) {
-            await prisma.form.create({
-                data: {
-                    type,
-                    status: "recommended",
-                    data: "",
-                    client: { connect: { email } },
-                },
-            });
-        }
-
-        await prisma.activity.create({
-            data: {
-                type: "Form Recommendation",
-                details: "AI generated recommended forms.",
-                client: { connect: { email } },
-            },
-        });
-
-        return NextResponse.json({ success: true, recommended: formTypes });
-    } catch (error) {
-        console.error("Error generating forms:", error);
-        return NextResponse.json(
-            { error: "Failed to generate forms" },
-            { status: 500 }
-        );
-    }
+  return NextResponse.json({ output: response.text });
 }
