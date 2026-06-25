@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BrAInstorm — Financial Advisor Workflow Software
 
-## Getting Started
+BrAInstorm is a web application concept built to help financial advisors organize client information, transcripts, files, forms, and AI-assisted client insights.
 
-First, run the development server:
+This project was inspired by real workflow problems I observed while helping with client account organization and advisor-office operations.
+
+## Features
+
+- Client CSV import workflow
+- Client timeline concept
+- Transcript upload and summarization workflow
+- Advisor/client insight generation
+- Persona and intent tracking concept
+- Form recommendation workflow
+- Secure file-storage planning
+- Advisor allowlist/authentication planning
+- CRM integration planning for advisor tools such as Redtail
+
+## Tech Stack
+
+- Next.js
+- TypeScript
+- React
+- Prisma
+- PostgreSQL
+- Supabase
+- NextAuth
+- Vercel
+
+## Why I Built It
+
+Financial advisor offices deal with a lot of scattered client information across CRMs, documents, notes, accounts, and forms. I built BrAInstorm as a workflow tool concept to explore how software and AI could help advisors organize client context faster.
+
+## What I Learned
+
+- Building full-stack apps with Next.js
+- Structuring client data
+- Working with authentication and protected routes
+- Planning CRM-style workflows
+- Designing software around real business problems
+- Using AI-assisted development while manually testing and debugging
+
+## Status
+
+Prototype / work in progress. Some integrations are planned or simulated and may not be production-ready.
+
+## Run Locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
