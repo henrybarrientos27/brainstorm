@@ -2,18 +2,12 @@
 
 import OpenAI from "openai";
 
-// Highly structured client instance for scalable use across BrAInstorm
+// Server-only client. The placeholder permits static builds without a secret;
+// live API routes still require OPENAI_API_KEY and will fail closed without it.
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  organization: process.env.OPENAI_ORG_ID, // Optional, if using org-scoped keys
+  apiKey: process.env.OPENAI_API_KEY || "missing-api-key",
+  organization: process.env.OPENAI_ORG_ID,
   baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-  defaultHeaders: {
-    "X-Client-App": "BrAInstorm-Platform",
-    "X-Compliance-Mode": "true",
-  },
-  defaultQuery: {
-    user: process.env.SYSTEM_USER_EMAIL || "compliance@brainstorm.ai",
-  },
 });
 
 export default openai;
