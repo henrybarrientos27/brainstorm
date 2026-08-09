@@ -1,9 +1,6 @@
-""// /app/api/client/[email]/forms/generate/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import openai from "@/lib/openai";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -37,16 +34,21 @@ export async function GET(req: NextRequest) {
     forms: client.forms.map((f) => ({ type: f.type, provider: f.provider })),
   };
 
-  const chat = new ChatOpenAI({ modelName: "gpt-3.5-turbo", temperature: 0.3 });
+  const response = await openai.responses.create({
+    model: process.env.OPENAI_MODEL || "gpt-5.6-terra",
+    input: [
+      {
+        role: "system",
+        content:
+          "Generate a draft, compliance-conscious financial form for advisor review. " +
+          "Never represent the draft as approved, filed, or legal advice.",
+      },
+      {
+        role: "user",
+        content: `Client data snapshot: ${JSON.stringify(dataBlob)}`,
+      },
+    ],
+  });
 
-  const response = await chat.call([
-    new SystemMessage(
-      "You are a helpful assistant that generates compliance-friendly, pre-filled financial forms for advisors based on known client information."
-    ),
-    new HumanMessage(
-      `Here is a snapshot of the client's current data: ${JSON.stringify(dataBlob)}`
-    ),
-  ]);
-
-  return NextResponse.json({ output: response.text });
+  return NextResponse.json({ output: response.output_text });
 }
