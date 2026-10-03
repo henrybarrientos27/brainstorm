@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If referencing this development repository, include the exact commit used. No archived DOI is assigned here."
+title: "BrAInstorm"
+type: software
+authors:
+  - family-names: Barrientos
+    given-names: Henry
+repository-code: "https://github.com/henrybarrientos27/brainstorm"
+license: MIT
+abstract: "Advisor-workflow application prototype using synthetic examples; not a production financial system."
+version: 0.1.0

@@ -10,6 +10,18 @@ production-ready financial system. It must not be used with real client data
 until an independent security, privacy, compliance, and access-control review
 has been completed.
 
+## Repository map
+
+- `app/`: pages and server routes.
+- `components/`: reusable interface components.
+- `lib/`: application helpers and integration logic.
+- `prisma/`: database schema and development setup.
+- `.env.example`: configuration names; supply your own local values.
+
+Use synthetic records for demonstrations and issue reports. Do not include
+client identifiers, transcripts, API credentials, or database exports.
+See [SECURITY.md](SECURITY.md) before attempting any deployment.
+
 ## Current capabilities
 
 - Next.js and TypeScript interface
@@ -44,9 +56,10 @@ logs.
     npm run build
     npm audit --audit-level=critical
 
-The dependency audit currently has no critical findings. Remaining noncritical
-transitive findings and the migration to the next Next.js major version are
-tracked release work; this prototype should not be treated as production-ready.
+Dependency advisories change over time. Run the audit above against the current
+lockfile and record its date and output before making a security claim.
+A successful build or a clean dependency audit alone does not establish
+production readiness.
 
 ## Data boundary
 
@@ -64,3 +77,8 @@ current behavior and limitations.
 ## License
 
 MIT. See LICENSE.
+
+## Citation and development status
+
+Use [CITATION.cff](CITATION.cff) and include the exact commit when referencing
+this development snapshot. Documentation updates do not create a release or DOI.
